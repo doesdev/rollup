@@ -35,6 +35,7 @@ import { isLiteral } from './ast/nodes/Literal';
 import Chunk from './Chunk';
 import { RenderOptions } from './utils/renderHelpers';
 import { getOriginalLocation } from './utils/getOriginalLocation';
+import MetaProperty from './ast/nodes/MetaProperty';
 
 export interface CommentDescription {
 	block: boolean;
@@ -68,14 +69,15 @@ export interface AstContext {
 		node: ExportAllDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration
 	) => void;
 	addImport: (node: ImportDeclaration) => void;
+	addImportMeta: (node: MetaProperty) => void;
 	code: string;
 	error: (props: RollupError, pos: number) => void;
 	fileName: string;
+	getAssetFileName: (assetId: string) => string;
 	getExports: () => string[];
 	getModuleExecIndex: () => number;
 	getModuleName: () => string;
 	getReexports: () => string[];
-	hasImportMeta: boolean;
 	imports: { [name: string]: ImportDescription };
 	isCrossChunkImport: (importDescription: ImportDescription) => boolean;
 	includeNamespace: () => void;
@@ -147,7 +149,7 @@ export default class Module {
 	exportsAll: { [name: string]: string };
 	exportAllSources: string[];
 	id: string;
-
+	exportedVariables: Map<Variable, string>;
 	imports: { [name: string]: ImportDescription };
 	isExternal: false;
 	originalCode: string;
@@ -158,6 +160,7 @@ export default class Module {
 	sourcemapChain: RawSourceMap[];
 	sources: string[];
 	dynamicImports: Import[];
+	importMetas: MetaProperty[];
 	dynamicImportResolutions: {
 		alias: string;
 		resolution: Module | ExternalModule | string | void;
@@ -169,15 +172,11 @@ export default class Module {
 	entryPointsHash: Uint8Array;
 	chunk: Chunk;
 	exportAllModules: (Module | ExternalModule)[];
-	hasImportMeta: boolean = false;
 
 	private ast: Program;
 	private astContext: AstContext;
 	private context: string;
-	private declarations: {
-		'*'?: NamespaceVariable;
-		[name: string]: Variable | undefined;
-	};
+	private namespaceVariable: NamespaceVariable = undefined;
 	private esTreeAst: ESTree.Program;
 	private magicString: MagicString;
 	private needsTreeshakingPass: boolean = false;
@@ -190,6 +189,7 @@ export default class Module {
 
 		if (graph.dynamicImport) {
 			this.dynamicImports = [];
+			this.importMetas = [];
 			this.dynamicImportResolutions = [];
 		}
 		this.isEntryPoint = false;
@@ -211,8 +211,7 @@ export default class Module {
 
 		this.exportAllSources = [];
 		this.exportAllModules = null;
-
-		this.declarations = Object.create(null);
+		this.exportedVariables = new Map();
 	}
 
 	setSource({
@@ -252,15 +251,16 @@ export default class Module {
 			addDynamicImport: this.addDynamicImport.bind(this),
 			addExport: this.addExport.bind(this),
 			addImport: this.addImport.bind(this),
+			addImportMeta: this.addImportMeta.bind(this),
 			code, // Only needed for debugging
 			error: this.error.bind(this),
 			fileName, // Needed for warnings
+			getAssetFileName: this.graph.getAssetFileName.bind(this),
 			getExports: this.getExports.bind(this),
 			getReexports: this.getReexports.bind(this),
 			getModuleExecIndex: () => this.execIndex,
 			getModuleName: this.basename.bind(this),
 			includeNamespace: this.includeNamespace.bind(this),
-			hasImportMeta: false,
 			imports: this.imports,
 			isCrossChunkImport: importDescription => importDescription.module.chunk !== this.chunk,
 			magicString: this.magicString,
@@ -422,6 +422,10 @@ export default class Module {
 
 	private addDynamicImport(node: Import) {
 		this.dynamicImports.push(node);
+	}
+
+	private addImportMeta(node: MetaProperty) {
+		this.importMetas.push(node);
 	}
 
 	basename() {
@@ -598,10 +602,9 @@ export default class Module {
 	}
 
 	getOrCreateNamespace(): NamespaceVariable {
-		const namespace = this.declarations['*'];
-		if (namespace) return namespace;
+		if (this.namespaceVariable) return this.namespaceVariable;
 
-		return (this.declarations['*'] = new NamespaceVariable(this.astContext));
+		this.namespaceVariable = new NamespaceVariable(this.astContext);
 	}
 
 	private includeNamespace() {
@@ -627,7 +630,6 @@ export default class Module {
 	render(options: RenderOptions): MagicString {
 		const magicString = this.magicString.clone();
 		this.ast.render(magicString, options);
-		this.hasImportMeta = this.astContext.hasImportMeta;
 		return magicString;
 	}
 
@@ -676,6 +678,10 @@ export default class Module {
 		return null;
 	}
 
+	getExportName(variable: Variable) {
+		return this.exportedVariables.get(variable);
+	}
+
 	traceExport(name: string): Variable {
 		if (name[0] === '*') {
 			// namespace
@@ -693,7 +699,9 @@ export default class Module {
 		if (reexportDeclaration) {
 			const declaration = reexportDeclaration.module.traceExport(reexportDeclaration.localName);
 
-			if (!declaration) {
+			if (declaration) {
+				this.exportedVariables.set(declaration, name);
+			} else {
 				this.graph.handleMissingExport.call(
 					this.graph.pluginContext,
 					reexportDeclaration.localName,
@@ -709,9 +717,11 @@ export default class Module {
 		const exportDeclaration = this.exports[name];
 		if (exportDeclaration) {
 			const name = exportDeclaration.localName;
-			const declaration = this.traceVariable(name);
+			const declaration = this.traceVariable(name) || this.graph.scope.findVariable(name);
 
-			return declaration || this.graph.scope.findVariable(name);
+			if (declaration) this.exportedVariables.set(declaration, name);
+
+			return declaration;
 		}
 
 		if (name === 'default') return;
@@ -720,7 +730,10 @@ export default class Module {
 			const module = this.exportAllModules[i];
 			const declaration = module.traceExport(name);
 
-			if (declaration) return declaration;
+			if (declaration) {
+				this.exportedVariables.set(declaration, name);
+				return declaration;
+			}
 		}
 	}
 
