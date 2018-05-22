@@ -425,6 +425,7 @@ export default class Module {
 	}
 
 	private addImportMeta(node: MetaProperty) {
+		console.log(this.importMetas);
 		this.importMetas.push(node);
 	}
 
@@ -604,7 +605,7 @@ export default class Module {
 	getOrCreateNamespace(): NamespaceVariable {
 		if (this.namespaceVariable) return this.namespaceVariable;
 
-		this.namespaceVariable = new NamespaceVariable(this.astContext);
+		return (this.namespaceVariable = new NamespaceVariable(this.astContext));
 	}
 
 	private includeNamespace() {
