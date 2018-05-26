@@ -323,7 +323,7 @@ export interface RollupCache {
 	modules: ModuleJSON[];
 }
 
-export interface RollupFileBuild {
+export interface RollupSingleFileBuild {
 	// TODO: consider deprecating to match code splitting
 	imports: string[];
 	exports: { name: string; originalName: string; moduleId: string }[];
@@ -358,7 +358,7 @@ export interface RollupDirOptions extends InputOptions {
 	output?: OutputOptionsDir;
 }
 
-export function rollup(options: RollupFileOptions): Promise<RollupFileBuild>;
+export function rollup(options: RollupFileOptions): Promise<RollupSingleFileBuild>;
 export function rollup(options: RollupDirOptions): Promise<RollupBuild>;
 
 export interface Watcher extends EventEmitter {}
