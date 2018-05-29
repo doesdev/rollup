@@ -1,7 +1,7 @@
+import MagicString from 'magic-string';
 import Identifier from './Identifier';
 import * as NodeType from './NodeType';
 import { NodeBase } from './shared/Node';
-import MagicString from 'magic-string';
 
 const globalImportMetaUrlMechanism = `(typeof document !== 'undefined' ? document.currentScript && document.currentScript.src || location.href : new URL('file:' + __filename).href)`;
 const importMetaUrlMechanisms: Record<string, string> = {

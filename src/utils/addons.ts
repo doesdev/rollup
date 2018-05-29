@@ -1,8 +1,8 @@
-import { runSequence } from './promise';
-import error from './error';
-import callIfFunction from './callIfFunction';
 import Graph from '../Graph';
 import { OutputOptions } from '../rollup/types';
+import callIfFunction from './callIfFunction';
+import error from './error';
+import { runSequence } from './promise';
 
 export interface Addons {
 	intro?: string;

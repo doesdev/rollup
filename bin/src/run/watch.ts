@@ -1,17 +1,23 @@
-import fs from 'fs';
-import * as rollup from 'rollup';
 import chalk from 'chalk';
-import ms from 'pretty-ms';
-import onExit from 'signal-exit';
 import dateTime from 'date-time';
+import fs from 'fs';
+import ms from 'pretty-ms';
+import * as rollup from 'rollup';
+import onExit from 'signal-exit';
+import {
+	Bundle,
+	BundleSet,
+	InputOption,
+	RollupError,
+	RollupWatchOptions
+} from '../../../src/rollup/types';
 import mergeOptions from '../../../src/utils/mergeOptions';
-import batchWarnings from './batchWarnings';
-import alternateScreen from './alternateScreen';
-import loadConfigFile from './loadConfigFile';
 import relativeId from '../../../src/utils/relativeId';
 import { handleError, stderr } from '../logging';
+import alternateScreen from './alternateScreen';
+import batchWarnings from './batchWarnings';
+import loadConfigFile from './loadConfigFile';
 import { printTimings } from './timings';
-import { RollupError, RollupWatchOptions, Bundle, BundleSet, InputOption } from '../../../src/rollup/types';
 interface WatchEvent {
 	code?: string;
 	error?: RollupError | Error;
@@ -86,7 +92,7 @@ export default function watch(
 	function start(configs: RollupWatchOptions[]) {
 		screen.reset(chalk.underline(`rollup v${rollup.VERSION}`));
 
-		let screenWriter = processConfigsErr || screen.reset;
+		const screenWriter = processConfigsErr || screen.reset;
 
 		watcher = rollup.watch(configs);
 
@@ -110,12 +116,14 @@ export default function watch(
 				case 'BUNDLE_START':
 					if (!silent) {
 						let input = event.input;
-						if ( typeof input !== 'string' ) {
-							input = Array.isArray(input) ? input.join(', ') : Object.values(input).join(', ')
+						if (typeof input !== 'string') {
+							input = Array.isArray(input) ? input.join(', ') : Object.values(input).join(', ');
 						}
 						stderr(
 							chalk.cyan(
-								`bundles ${chalk.bold(input)} → ${chalk.bold(event.output.map(relativeId).join(', '))}...`
+								`bundles ${chalk.bold(input)} → ${chalk.bold(
+									event.output.map(relativeId).join(', ')
+								)}...`
 							)
 						);
 					}

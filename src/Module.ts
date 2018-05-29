@@ -1,40 +1,40 @@
-import * as ESTree from 'estree';
 import { IParse, Options as AcornOptions } from 'acorn';
-import MagicString from 'magic-string';
+import * as ESTree from 'estree';
 import { locate } from 'locate-character';
-import { timeEnd, timeStart } from './utils/timers';
-import { basename, extname } from './utils/path';
-import { makeLegal } from './utils/identifierHelpers';
-import getCodeFrame from './utils/getCodeFrame';
-import { SOURCEMAPPING_URL_RE } from './utils/sourceMappingURL';
-import error from './utils/error';
-import NamespaceVariable from './ast/variables/NamespaceVariable';
-import extractNames from './ast/utils/extractNames';
-import ModuleScope from './ast/scopes/ModuleScope';
-import ImportSpecifier from './ast/nodes/ImportSpecifier';
-import Graph from './Graph';
-import Variable from './ast/variables/Variable';
-import Program from './ast/nodes/Program';
-import { GenericEsTreeNode, Node, NodeBase } from './ast/nodes/shared/Node';
-import ExportNamedDeclaration from './ast/nodes/ExportNamedDeclaration';
-import ImportDeclaration from './ast/nodes/ImportDeclaration';
-import Identifier from './ast/nodes/Identifier';
+import MagicString from 'magic-string';
+import ExportAllDeclaration from './ast/nodes/ExportAllDeclaration';
 import ExportDefaultDeclaration, {
 	isExportDefaultDeclaration
 } from './ast/nodes/ExportDefaultDeclaration';
+import ExportNamedDeclaration from './ast/nodes/ExportNamedDeclaration';
 import FunctionDeclaration from './ast/nodes/FunctionDeclaration';
-import ExportAllDeclaration from './ast/nodes/ExportAllDeclaration';
-import { RollupWarning, ModuleJSON, IdMap, RollupError, RawSourceMap } from './rollup/types';
-import ExternalModule from './ExternalModule';
-import ExternalVariable from './ast/variables/ExternalVariable';
+import Identifier from './ast/nodes/Identifier';
 import Import from './ast/nodes/Import';
+import ImportDeclaration from './ast/nodes/ImportDeclaration';
+import ImportSpecifier from './ast/nodes/ImportSpecifier';
 import { nodeConstructors } from './ast/nodes/index';
-import * as NodeType from './ast/nodes/NodeType';
-import { isTemplateLiteral } from './ast/nodes/TemplateLiteral';
 import { isLiteral } from './ast/nodes/Literal';
+import * as NodeType from './ast/nodes/NodeType';
+import Program from './ast/nodes/Program';
+import { GenericEsTreeNode, Node, NodeBase } from './ast/nodes/shared/Node';
+import { isTemplateLiteral } from './ast/nodes/TemplateLiteral';
+import ModuleScope from './ast/scopes/ModuleScope';
+import extractNames from './ast/utils/extractNames';
+import ExternalVariable from './ast/variables/ExternalVariable';
+import NamespaceVariable from './ast/variables/NamespaceVariable';
+import Variable from './ast/variables/Variable';
 import Chunk from './Chunk';
-import { RenderOptions } from './utils/renderHelpers';
+import ExternalModule from './ExternalModule';
+import Graph from './Graph';
+import { IdMap, ModuleJSON, RawSourceMap, RollupError, RollupWarning } from './rollup/types';
+import error from './utils/error';
+import getCodeFrame from './utils/getCodeFrame';
 import { getOriginalLocation } from './utils/getOriginalLocation';
+import { makeLegal } from './utils/identifierHelpers';
+import { basename, extname } from './utils/path';
+import { RenderOptions } from './utils/renderHelpers';
+import { SOURCEMAPPING_URL_RE } from './utils/sourceMappingURL';
+import { timeEnd, timeStart } from './utils/timers';
 
 export interface CommentDescription {
 	block: boolean;
@@ -457,7 +457,7 @@ export default class Module {
 	}
 
 	linkDependencies() {
-		for (let source of this.sources) {
+		for (const source of this.sources) {
 			const id = this.resolvedIds[source];
 
 			if (id) {
@@ -469,7 +469,7 @@ export default class Module {
 		const resolveSpecifiers = (specifiers: {
 			[name: string]: ImportDescription | ReexportDescription;
 		}) => {
-			for (let name of Object.keys(specifiers)) {
+			for (const name of Object.keys(specifiers)) {
 				const specifier = specifiers[name];
 
 				const id = this.resolvedIds[specifier.source];
@@ -499,7 +499,7 @@ export default class Module {
 				}
 			} else if (isLiteral(importArgument)) {
 				if (typeof importArgument.value === 'string') {
-					return <string>importArgument.value;
+					return importArgument.value;
 				}
 			} else {
 				return importArgument;
@@ -522,7 +522,7 @@ export default class Module {
 							line: location.line,
 							column: location.column
 						},
-						pos: pos,
+						pos,
 						message: `Error when using sourcemap for reporting an error: ${e.message}`,
 						code: 'SOURCEMAP_ERROR'
 					},

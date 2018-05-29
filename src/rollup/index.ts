@@ -1,27 +1,27 @@
-import { getTimings, initialiseTimers, timeEnd, timeStart } from '../utils/timers';
-import { basename, resolve, dirname } from '../utils/path';
-import { writeFile } from '../utils/fs';
-import { mapSequence } from '../utils/promise';
-import error from '../utils/error';
-import { SOURCEMAPPING_URL } from '../utils/sourceMappingURL';
-import mergeOptions, { GenericConfigObject } from '../utils/mergeOptions';
-import { Deprecation } from '../utils/deprecateOptions';
-import Graph from '../Graph';
-import ensureArray from '../utils/ensureArray';
 import { SourceMap } from 'magic-string';
+import { optimizeChunks } from '../chunk-optimization';
+import Graph from '../Graph';
 import { createAddons } from '../utils/addons';
 import commondir from '../utils/commondir';
-import { optimizeChunks } from '../chunk-optimization';
+import { Deprecation } from '../utils/deprecateOptions';
+import ensureArray from '../utils/ensureArray';
+import error from '../utils/error';
+import { writeFile } from '../utils/fs';
+import mergeOptions, { GenericConfigObject } from '../utils/mergeOptions';
+import { basename, dirname, resolve } from '../utils/path';
+import { mapSequence } from '../utils/promise';
+import { SOURCEMAPPING_URL } from '../utils/sourceMappingURL';
+import { getTimings, initialiseTimers, timeEnd, timeStart } from '../utils/timers';
 
-import {
-	WarningHandler,
-	InputOptions,
-	OutputOptions,
-	SerializedTimings,
-	Plugin,
-	ModuleJSON
-} from './types';
 import getExportMode from '../utils/getExportMode';
+import {
+	InputOptions,
+	ModuleJSON,
+	OutputOptions,
+	Plugin,
+	SerializedTimings,
+	WarningHandler
+} from './types';
 
 export const VERSION = '<@VERSION@>';
 
@@ -329,7 +329,7 @@ export default function rollup(
 					const inputBase = commondir(
 						chunks.filter(chunk => chunk.entryModule).map(chunk => chunk.entryModule.id)
 					);
-					let existingNames = Object.create(null);
+					const existingNames = Object.create(null);
 
 					const promise = createAddons(graph, outputOptions)
 						.then(addons => {
@@ -338,13 +338,13 @@ export default function rollup(
 							return (
 								Promise.resolve()
 									.then(() => {
-										for (let chunk of chunks) {
+										for (const chunk of chunks) {
 											if (!inputOptions.experimentalPreserveModules)
 												chunk.generateInternalExports(outputOptions);
 											if (chunk.isEntryModuleFacade)
 												chunk.exportMode = getExportMode(chunk, outputOptions);
 										}
-										for (let chunk of chunks) {
+										for (const chunk of chunks) {
 											chunk.preRender(outputOptions, inputBase);
 										}
 										if (!optimized && inputOptions.optimizeChunks) {
@@ -363,7 +363,7 @@ export default function rollup(
 											);
 											optimized = true;
 										}
-										for (let chunk of chunks) {
+										for (const chunk of chunks) {
 											if (inputOptions.experimentalPreserveModules) {
 												chunk.generateNamePreserveModules(inputBase);
 											} else {
@@ -431,7 +431,7 @@ export default function rollup(
 
 							return Promise.all(
 								Object.keys(result).map(chunkName => {
-									let chunk = result[chunkName];
+									const chunk = result[chunkName];
 									let { code, map } = chunk;
 
 									const promises = [];

@@ -1,17 +1,17 @@
-import * as rollup from 'rollup';
 import chalk from 'chalk';
 import ms from 'pretty-ms';
-import { handleError, stderr } from '../logging';
-import relativeId from '../../../src/utils/relativeId';
-import { mapSequence } from '../../../src/utils/promise';
-import SOURCEMAPPING_URL from '../sourceMappingUrl';
+import * as rollup from 'rollup';
 import {
+	Bundle,
+	BundleSet,
 	InputOptions,
 	OutputChunk,
-	OutputOptions,
-	Bundle,
-	BundleSet
+	OutputOptions
 } from '../../../src/rollup/types';
+import { mapSequence } from '../../../src/utils/promise';
+import relativeId from '../../../src/utils/relativeId';
+import { handleError, stderr } from '../logging';
+import SOURCEMAPPING_URL from '../sourceMappingUrl';
 import { BatchWarnings } from './batchWarnings';
 import { printTimings } from './timings';
 

@@ -1,20 +1,20 @@
-import * as ESTree from 'estree';
 import { Options as AcornOptions } from 'acorn';
-import { decode } from 'sourcemap-codec';
+import * as ESTree from 'estree';
 import { locate } from 'locate-character';
-import error from './error';
-import getCodeFrame from './getCodeFrame';
+import { decode } from 'sourcemap-codec';
+import Program from '../ast/nodes/Program';
 import Graph from '../Graph';
 import { defaultAcornOptions } from '../Module';
+import { TransformContext } from '../rollup/types';
 import {
 	Plugin,
-	RollupWarning,
+	RawSourceMap,
 	RollupError,
-	SourceDescription,
-	RawSourceMap
+	RollupWarning,
+	SourceDescription
 } from '../rollup/types';
-import Program from '../ast/nodes/Program';
-import { TransformContext } from '../rollup/types';
+import error from './error';
+import getCodeFrame from './getCodeFrame';
 
 export default function transform(
 	graph: Graph,

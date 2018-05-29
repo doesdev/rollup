@@ -1,26 +1,26 @@
-import { timeEnd, timeStart } from './utils/timers';
+import sha256 from 'hash.js/lib/hash/sha/256';
 import MagicString, { Bundle as MagicStringBundle, SourceMap } from 'magic-string';
-import Module from './Module';
+import * as NodeType from './ast/nodes/NodeType';
+import { isExportDefaultVariable } from './ast/variables/ExportDefaultVariable';
+import ExternalVariable from './ast/variables/ExternalVariable';
+import LocalVariable from './ast/variables/LocalVariable';
+import NamespaceVariable from './ast/variables/NamespaceVariable';
+import Variable from './ast/variables/Variable';
+import ExternalModule from './ExternalModule';
 import finalisers from './finalisers/index';
-import getIndentString from './utils/getIndentString';
-import transformBundle from './utils/transformBundle';
+import Graph from './Graph';
+import Module from './Module';
+import { GlobalsOption, OutputOptions, RawSourceMap } from './rollup/types';
+import { Addons } from './utils/addons';
+import { toBase64 } from './utils/base64';
 import collapseSourcemaps from './utils/collapseSourcemaps';
 import error from './utils/error';
-import { normalize, resolve, extname, dirname, relative, basename } from './utils/path';
-import Graph from './Graph';
-import ExternalModule from './ExternalModule';
-import { isExportDefaultVariable } from './ast/variables/ExportDefaultVariable';
-import Variable from './ast/variables/Variable';
-import NamespaceVariable from './ast/variables/NamespaceVariable';
+import getIndentString from './utils/getIndentString';
 import { makeLegal } from './utils/identifierHelpers';
-import LocalVariable from './ast/variables/LocalVariable';
-import * as NodeType from './ast/nodes/NodeType';
+import { basename, dirname, extname, normalize, relative, resolve } from './utils/path';
 import { RenderOptions } from './utils/renderHelpers';
-import { Addons } from './utils/addons';
-import sha256 from 'hash.js/lib/hash/sha/256';
-import ExternalVariable from './ast/variables/ExternalVariable';
-import { GlobalsOption, OutputOptions, RawSourceMap } from './rollup/types';
-import { toBase64 } from './utils/base64';
+import { timeEnd, timeStart } from './utils/timers';
+import transformBundle from './utils/transformBundle';
 
 export interface ModuleDeclarations {
 	exports: ChunkExports;
@@ -156,7 +156,7 @@ export default class Chunk {
 	}
 
 	private inlineChunkDependencies(chunk: Chunk, deep: boolean) {
-		for (let dep of chunk.dependencies) {
+		for (const dep of chunk.dependencies) {
 			if (dep instanceof ExternalModule) {
 				if (this.dependencies.indexOf(dep) === -1) this.dependencies.push(dep);
 			} else {
@@ -460,7 +460,7 @@ export default class Chunk {
 
 		// reserved internal binding names for system format wiring
 		if (options.format === 'system') {
-			used['_setter'] = used['_starExcludes'] = used['_$p'] = 1;
+			used._setter = used._starExcludes = used._$p = 1;
 		}
 
 		const toDeshadow: Set<string> = new Set();
@@ -503,7 +503,7 @@ export default class Chunk {
 				safeName = getSafeName(variable.name);
 				toDeshadow.add(safeName);
 			} else {
-				const chunk = (<Module>module).chunk;
+				const chunk = module.chunk;
 				if (chunk.exportMode === 'default') safeName = chunk.name;
 				else safeName = `${chunk.name}.${module.chunk.getVariableExportName(variable)}`;
 			}
@@ -595,7 +595,7 @@ export default class Chunk {
 				}
 			}
 
-			let reexports = reexportDeclarations.get(dep);
+			const reexports = reexportDeclarations.get(dep);
 			let exportsNames: boolean, exportsDefault: boolean;
 			if (dep instanceof ExternalModule) {
 				exportsNames = dep.exportsNames || dep.exportsNamespace;
@@ -612,7 +612,7 @@ export default class Chunk {
 				id = dep.renderPath || dep.setRenderPath(options, inputBase);
 				if (options.format === 'umd' || options.format === 'iife') {
 					globalName = getGlobalName(
-						<ExternalModule>dep,
+						dep,
 						options.globals,
 						this.graph,
 						exportsNames || exportsDefault
@@ -688,7 +688,7 @@ export default class Chunk {
 			if (seen.has(dep)) return;
 			seen.add(dep);
 			if (dep instanceof Chunk) {
-				for (let subDep of dep.dependencies) {
+				for (const subDep of dep.dependencies) {
 					if (visitDep(subDep)) return true;
 				}
 			}
@@ -725,7 +725,7 @@ export default class Chunk {
 	preRender(options: OutputOptions, inputBase: string) {
 		timeStart('render modules', 3);
 
-		let magicString = new MagicStringBundle({ separator: options.compact ? '' : '\n\n' });
+		const magicString = new MagicStringBundle({ separator: options.compact ? '' : '\n\n' });
 		this.usedModules = [];
 		this.indentString = options.compact ? '' : getIndentString(this.orderedModules, options);
 
@@ -745,7 +745,7 @@ export default class Chunk {
 
 		// if an entry point facade, inline the execution list to avoid loading latency
 		if (this.isEntryModuleFacade) {
-			for (let dep of this.dependencies) {
+			for (const dep of this.dependencies) {
 				if (dep instanceof Chunk) this.inlineChunkDependencies(dep, true);
 			}
 		} else {
@@ -832,12 +832,12 @@ export default class Chunk {
 		if (this.isEntryModuleFacade || chunk.isEntryModuleFacade)
 			throw new Error('Internal error: Code splitting chunk merges not supported for facades');
 
-		for (let module of chunk.orderedModules) {
+		for (const module of chunk.orderedModules) {
 			module.chunk = this;
 			this.orderedModules.push(module);
 		}
 
-		for (let [variable, module] of Array.from(chunk.imports.entries())) {
+		for (const [variable, module] of Array.from(chunk.imports.entries())) {
 			if (!this.imports.has(variable) && module.chunk !== this) {
 				this.imports.set(variable, module);
 			}
@@ -845,7 +845,7 @@ export default class Chunk {
 
 		// NB detect when exported variables are orphaned by the merge itself
 		// (involves reverse tracing dependents)
-		for (let [variable, module] of Array.from(chunk.exports.entries())) {
+		for (const [variable, module] of Array.from(chunk.exports.entries())) {
 			if (!this.exports.has(variable)) {
 				this.exports.set(variable, module);
 			}
@@ -861,12 +861,12 @@ export default class Chunk {
 			oldExportNames: Record<string, Variable>
 		) => {
 			if (dep.imports) {
-				for (let impt of dep.imports) {
+				for (const impt of dep.imports) {
 					impt.imported = this.getVariableExportName(oldExportNames[impt.imported]);
 				}
 			}
 			if (dep.reexports) {
-				for (let reexport of dep.reexports) {
+				for (const reexport of dep.reexports) {
 					reexport.imported = this.getVariableExportName(oldExportNames[reexport.imported]);
 				}
 			}
@@ -901,7 +901,7 @@ export default class Chunk {
 
 		// go through the other chunks and update their dependencies
 		// also update their import and reexport names in the process
-		for (let c of chunkList) {
+		for (const c of chunkList) {
 			let includedDeclaration: ModuleDeclarationDependency;
 			for (let i = 0; i < c.dependencies.length; i++) {
 				const dep = c.dependencies[i];
@@ -957,7 +957,7 @@ export default class Chunk {
 			if (!existingNames[outName]) {
 				existingNames[outName] = true;
 			} else {
-				let ext = extname(outName);
+				const ext = extname(outName);
 				outName = outName.substr(0, outName.length - ext.length);
 				let uniqueName,
 					uniqueIndex = 1;
@@ -994,7 +994,7 @@ export default class Chunk {
 
 			const renderedDependency = this.renderedDeclarations.dependencies[i];
 
-			let depId = dep instanceof ExternalModule ? renderedDependency.id : dep.id;
+			const depId = dep instanceof ExternalModule ? renderedDependency.id : dep.id;
 			let relPath = this.id ? normalize(relative(dirname(this.id), depId)) : depId;
 			if (!relPath.startsWith('../')) relPath = './' + relPath;
 
@@ -1051,7 +1051,7 @@ export default class Chunk {
 						this.graph.hasLoaders ||
 						this.graph.plugins.find(plugin => Boolean(plugin.transform || plugin.transformBundle))
 					) {
-						let decodedMap = magicString.generateDecodedMap({});
+						const decodedMap = magicString.generateDecodedMap({});
 						map = collapseSourcemaps(
 							this,
 							file,
